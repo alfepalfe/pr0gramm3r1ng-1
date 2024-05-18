@@ -359,7 +359,7 @@ void Board::keyboardActions(sf::Event event, int size)
 					{
 						for (int x = x_start; x <= x_end; x++)
 						{
-							if (m_boardState[x][y] == '1' || y == 20)
+							if (m_boardState[x][y] == '1' || y == 19)
 							{
 								FuckedUpBeyondAllRecognition = y;
 								break;
