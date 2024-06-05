@@ -82,10 +82,12 @@ private:
 public:
 	void initializeNewEmptyBoard();
 	void drawBoard(sf::RenderWindow &window);
-	void initializeNewTetromino(I_Tetromino tetromino, int size, int offsetFromCenter);
+	void initializeNewTetromino(I_Tetromino tetromino, int size, int offsetFromCenter, bool& newPieceNeeded);
 	void moveFallingPieceDown();
 	void keyboardActions(sf::Event event, int size);
-	void lockFallingPieces();
+	void rotations(sf::Event event, int size);
+	void lockFallingPieces(bool force);
+	bool isNewPieceNeeded();
 };
 
 int main()
@@ -93,12 +95,13 @@ int main()
 	sf::RenderWindow window(sf::VideoMode(COLUMNS * TILE_SIZE, ROWS * TILE_SIZE), "Spel");
 	// S�tt framerate till 60
 	window.setFramerateLimit(20);
+	
+	bool newPieceNeeded = true;
 
 	Board theBoard;
 	theBoard.initializeNewEmptyBoard();
 	I_Tetromino the_I_tetromino;
 
-	theBoard.initializeNewTetromino(the_I_tetromino, 4, 3); // TEMP hårdkodning!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	int currentFrame = 0;
 	while (window.isOpen())
@@ -113,7 +116,12 @@ int main()
 				window.close();
 		}
 		theBoard.drawBoard(window);
-		theBoard.lockFallingPieces();
+		theBoard.lockFallingPieces(false);
+		newPieceNeeded = theBoard.isNewPieceNeeded();
+		if (newPieceNeeded == true)
+		{
+			theBoard.initializeNewTetromino(the_I_tetromino, 4, 3, newPieceNeeded); // TEMP hårdkodning!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		}
 		window.display();
 		theBoard.keyboardActions(event, 4);
 		if (currentFrame % 20 == 0)
@@ -169,7 +177,7 @@ void Board::drawBoard(sf::RenderWindow &window)
 	}
 }
 
-void Board::initializeNewTetromino(I_Tetromino tetromino, int size, int offsetFromCenter)
+void Board::initializeNewTetromino(I_Tetromino tetromino, int size, int offsetFromCenter, bool& newPieceNeeded)
 {
 	for (int y = 0; y < size; y++)
 	{
@@ -177,13 +185,13 @@ void Board::initializeNewTetromino(I_Tetromino tetromino, int size, int offsetFr
 		{
 			char temp = tetromino.getRotationState1(x, y);
 			m_boardState[x + offsetFromCenter][y] = temp;
+			newPieceNeeded = false;
 		}
 	}
 }
 
 void Board::moveFallingPieceDown()
 {
-	int movedSpaces = 0;
 	char temp;
 	for (int y = 19; y >= 0; y--)
 	{
@@ -194,7 +202,7 @@ void Board::moveFallingPieceDown()
 				break;
 			}
 
-			if (m_boardState[x][y] != '0' && m_boardState[x][y + 1] == '0')
+			if (m_boardState[x][y] != '0' && m_boardState[x][y] != '1' && m_boardState[x][y + 1] == '0')
 			{
 				char temp = m_boardState[x][y];
 				m_boardState[x][y + 1] = temp;
@@ -204,8 +212,22 @@ void Board::moveFallingPieceDown()
 	}
 }
 
-void Board::lockFallingPieces()
+void Board::lockFallingPieces(bool force)
 {
+	if (force == true)
+	{
+		for (int x = 0 ; x < 10 ; x++)
+		{
+			for (int y = 0 ; y < 20 ; y++)
+			{
+				if (m_boardState[x][y] != '0' && m_boardState[x][y] != '1')
+				{
+					m_boardState[x][y] = '1';
+				}
+			}
+		}
+	}
+
 	for (int x = 0; x < 10; x++)
 	{
 		if (m_boardState[x][19] != '0' && m_boardState[x][19] != '1')
@@ -243,7 +265,7 @@ void Board::keyboardActions(sf::Event event, int size)
 				keepGoing = false;
 			}
 		}
-		if (keepGoing = true) // skippa foljande block om biten redan e i kanten
+		if (keepGoing == true) // skippa foljande block om biten redan e i kanten
 		{
 			for (int y = 0; y < 19; y++)
 			{
@@ -328,6 +350,7 @@ void Board::keyboardActions(sf::Event event, int size)
 	// END SIDE-MOVEMENT
 
 	keepGoing = true;
+
 	// HARD-DROP
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
 	{
@@ -353,40 +376,71 @@ void Board::keyboardActions(sf::Event event, int size)
 						}
 					}
 					// fanskapet fungerar inte
+					// edit: Fanskapet funkar nu {-:
 					int FuckedUpBeyondAllRecognition = 0;
 					keepGoing = true;
 					for (; y < 20; y++)
 					{
 						for (int x = x_start; x <= x_end; x++)
 						{
-							if (m_boardState[x][y] == '1' || y == 19)
+							if (m_boardState[x][y] == '1')
 							{
-								FuckedUpBeyondAllRecognition = y;
-								break;
+								FuckedUpBeyondAllRecognition = y - 1;
 								keepGoing = false;
+								break;
 							}
+
 						}
+						
 						if (keepGoing == false)
 						{
 							break;
 						}
+						else 
+						{
+							if (y == 19)
+								FuckedUpBeyondAllRecognition = y;	
+						}
 					}
-
-					cout << "start:\n"
-						 << x_start << "\n"
-						 << "end:\t" << x_end << "\n";
+					cout << FuckedUpBeyondAllRecognition;
 					for (int x = x_start; x <= x_end; x++)
 					{
 						temp = m_boardState[x][y_value];
 						m_boardState[x][y_value] = '0';
 						m_boardState[x][FuckedUpBeyondAllRecognition] = temp;
 					}
-
-					cout << FuckedUpBeyondAllRecognition;
+					lockFallingPieces(true);
 					return;
 				}
 			}
 		}
 	}
 	// END HARD-DROP
+
+
+	// tänkte från början ha rotation här också men skulle då inte gå att...
+	// rotera och göra annat i samma frame, så det får bli egen funktion.
+}
+
+void Board::rotations(sf::Event, int size)
+{
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+	{
+		return;			//temp
+	}
+}
+
+bool Board::isNewPieceNeeded()
+{
+	for (int x = 0 ; x < 9 ; x++)
+	{
+		for (int y = 0 ; y < 19 ; y++)
+		{
+			if (m_boardState[x][y] != '0' && m_boardState[x][y] != '1')
+			{
+				return false;			//Då något annat än 1 & 0 hittar kan man direkt returnera false.
+			}
+		}
+	}
+	return true;						//Denna sats körs endast då hela bräder är genomsökt & inga fallade bitar har hittats.
 }
